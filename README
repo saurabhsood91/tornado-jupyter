@@ -1,0 +1,3 @@
+A Tornado application which receives code from a web application and responds with the output.
+
+Uses jupyter_client on the backend
