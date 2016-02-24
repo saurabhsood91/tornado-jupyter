@@ -3,6 +3,7 @@ import tornado.web
 import jupyter_client
 import json
 from queue import Empty
+from traitlets import Integer
 
 class MainHandler(tornado.web.RequestHandler):
     def post(self):
@@ -12,16 +13,18 @@ class MainHandler(tornado.web.RequestHandler):
         kernel_manager.name = "python3"
         kernel_manager.start_kernel()
         kernel = kernel_manager.client()
+        kernel.start_channels()
         msg_id = kernel.execute(code)
-        print(msg_id)
+        # print(msg_id)
 
         while True:
-            print('stuck here')
+            # print('stuck here')
             try:
-                msg = kernel.shell_channel.get_msg()
-                print(msg)
+                msg = kernel.shell_channel.get_msg(Integer(10, config=True))
+                # print(msg)
             except Empty:
-                print('Empty')
+                # print('Empty')
+                pass
                 # This indicates that something bad happened, as AFAIK this should return...
                 # self.log.error("Timeout waiting for execute reply")
                 # raise KnitpyException("Timeout waiting for execute reply.")
@@ -29,7 +32,7 @@ class MainHandler(tornado.web.RequestHandler):
                 # It's finished, and we got our reply, so next look at the results
                 break
             else:
-                print('something')
+                # print('something')
                 # not our reply
                 # self.log.debug("Discarding message from a different client: %s" % msg)
                 continue
@@ -39,25 +42,29 @@ class MainHandler(tornado.web.RequestHandler):
         # We handle messages until the kernel indicates it's ide again
         status_idle_again = False
         while True:
-            print('stuck here now')
+            # print('stuck here now')
             try:
-                msg = kernel.get_iopub_msg()
+                msg = kernel.get_iopub_msg(Integer(10, config=True))
+                # print('doing something')
             except Exception:
-                print('Empty')
+                # print('Empty')
+                pass
                 # There should be at least some messages: we just executed code!
                 # The only valid time could be when the timeout happened too early (aka long
                 # running code in the document) -> we handle that below
                 # self.log.warn("Timeout waiting for expected IOPub output")
                 break
 
-            print(msg['parent_header'].get('msg_id') != msg_id)
+            # print(msg['parent_header'].get('msg_id') != msg_id)
             if msg['parent_header'].get('msg_id') != msg_id:
                 if msg['parent_header'].get(u'msg_type') != u'is_complete_request':
-                    print('output')
+                    # print('output')
+                    pass
                     # not an output from our execution and not one of the complete_requests
                     # self.log.debug("Discarding output from a different client: %s" % msg)
                 else:
-                    print('something too')
+                    # print('something too')
+                    pass
                     # complete_requests are ok
                 continue
 
@@ -65,7 +72,7 @@ class MainHandler(tornado.web.RequestHandler):
             msg_type = msg['msg_type']
             content = msg['content']
 
-            print('Out')
+            # print('Out')
 
             # The kernel indicates some status: executing -> idle
             if msg_type == 'status':
@@ -81,14 +88,16 @@ class MainHandler(tornado.web.RequestHandler):
                 # self.log.debug("Discarding unexpected 'clear_output' message: %s" % msg)
                 continue
             ## So, from here on we have a messages with real content
-            self.write(msg)
+            print(content)
+            self.write(json.dumps(content, ensure_ascii=False))
 
         if not status_idle_again:
             pass
             # self.log.error("Code lines didn't execute in time. Don't use long-running code in "
                         #    "documents or increase the timeout!")
             # self.log.error("line(s): %s" % lines)
-        self.write(json.dumps([]))
+        # print(type(content))
+        # self.write(content)
 
 def make_app():
     return tornado.web.Application([
